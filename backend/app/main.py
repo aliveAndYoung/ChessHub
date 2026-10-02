@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.database import Base, engine, get_db
 from app.models import Challenge, ChallengeStatus, User, UserStatus
@@ -67,6 +67,20 @@ class MatchResponse(BaseModel):
 	challenge_id: int
 	status: ChallengeStatus
 	player_ids: list[int]
+
+
+class IncomingChallengeResponse(BaseModel):
+	id: int
+	sender_id: int
+	sender_username: str
+	status: ChallengeStatus
+
+
+class ActiveMatchResponse(BaseModel):
+	challenge_id: int
+	opponent_id: int
+	opponent_username: str
+	status: ChallengeStatus
 
 
 @app.get("/health")
@@ -138,6 +152,74 @@ def create_challenge(
 	database.commit()
 	database.refresh(challenge)
 	return challenge
+
+
+@app.get(
+	"/challenges/incoming/{receiver_id}",
+	response_model=list[IncomingChallengeResponse],
+)
+def list_incoming_challenges(
+	receiver_id: int, database: Session = Depends(get_db)
+) -> list[IncomingChallengeResponse]:
+	statement = (
+		select(
+			Challenge.id,
+			Challenge.sender_id,
+			User.username,
+			Challenge.status,
+		)
+		.join(User, User.id == Challenge.sender_id)
+		.where(
+			Challenge.receiver_id == receiver_id,
+			Challenge.status == ChallengeStatus.PENDING,
+		)
+		.order_by(Challenge.id)
+	)
+	return [
+		IncomingChallengeResponse(
+			id=challenge_id,
+			sender_id=sender_id,
+			sender_username=sender_username,
+			status=challenge_status,
+		)
+		for challenge_id, sender_id, sender_username, challenge_status in database.execute(
+			statement
+		).all()
+	]
+
+
+@app.get(
+	"/challenges/active/{user_id}",
+	response_model=ActiveMatchResponse | None,
+)
+def get_active_match(
+	user_id: int, database: Session = Depends(get_db)
+) -> ActiveMatchResponse | None:
+	sender = aliased(User, name="sender")
+	receiver = aliased(User, name="receiver")
+	statement = (
+		select(Challenge, sender, receiver)
+		.join(sender, sender.id == Challenge.sender_id)
+		.join(receiver, receiver.id == Challenge.receiver_id)
+		.where(
+			Challenge.status == ChallengeStatus.ACCEPTED,
+			(Challenge.sender_id == user_id) | (Challenge.receiver_id == user_id),
+		)
+		.order_by(Challenge.id.desc())
+		.limit(1)
+	)
+	result = database.execute(statement).first()
+	if result is None:
+		return None
+
+	challenge, sender_user, receiver_user = result
+	opponent = receiver_user if challenge.sender_id == user_id else sender_user
+	return ActiveMatchResponse(
+		challenge_id=challenge.id,
+		opponent_id=opponent.id,
+		opponent_username=opponent.username,
+		status=challenge.status,
+	)
 
 
 @app.patch(

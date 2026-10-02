@@ -1,0 +1,48 @@
+:root {
+  --text: #b4bac9;
+  --text-h: #f1f3f7;
+  --muted: #858da1;
+  --bg: #0d1017;
+  --panel: #151a24;
+  --panel-deep: #111620;
+  --surface: #1b2230;
+  --surface-hover: #232c3d;
+  --border: #293244;
+  --accent: #7dd3fc;
+  --accent-soft: #19384a;
+  --accent-border: #2d6680;
+  --success: #6ee7b7;
+  --success-soft: #1c493d;
+  --error: #fb8c8c;
+  --shadow:
+    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+
+  --sans: 'Trebuchet MS', 'Segoe UI', sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+
+  font: 18px/145% var(--sans);
+  letter-spacing: 0;
+  color-scheme: dark;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @media (max-width: 1024px) {
+    font-size: 16px;
+  }
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    linear-gradient(120deg, rgba(125, 211, 252, 0.04), transparent 35%),
+    var(--bg);
+}
+
+#root {
+  min-height: 100vh;
+}
